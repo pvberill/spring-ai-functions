@@ -1,9 +1,11 @@
 package guru.springframework.springaifunctions.services;
 
 
+import guru.springframework.springaifunctions.functions.StockQuoteFunction;
 import guru.springframework.springaifunctions.functions.WeatherServiceFunction;
 import guru.springframework.springaifunctions.model.Answer;
 import guru.springframework.springaifunctions.model.Question;
+import guru.springframework.springaifunctions.model.StockPriceResponse;
 import guru.springframework.springaifunctions.model.WeatherResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.messages.Message;
@@ -30,6 +32,28 @@ public class OpenAIServiceImpl implements OpenAIService {
     private String apiNinjasKey;
 
     final OpenAiChatClient openAiChatClient;
+
+    @Override
+    public Answer getStockPrice(Question question) {
+        var promptOptions = OpenAiChatOptions.builder()
+                .withFunctionCallbacks(List.of(FunctionCallbackWrapper.builder(new StockQuoteFunction(apiNinjasKey))
+                        .withName("CurrentStockPrice")
+                        .withDescription("Get the current stock price for a stock symbol")
+                        .withResponseConverter((response) -> {
+                            String schema = ModelOptionsUtils.getJsonSchema(StockPriceResponse.class, false);
+                            String json = ModelOptionsUtils.toJsonString(response);
+                            return schema + "\n" + json;
+                        })
+                        .build()))
+                .build();
+
+        Message userMessage = new PromptTemplate(question.question()).createMessage();
+        Message systemMessage = new SystemPromptTemplate("You are an agent which returns back a stock price for the given stock symbol (or ticker)").createMessage();
+
+        var response = openAiChatClient.call(new Prompt(List.of(userMessage, systemMessage), promptOptions));
+
+        return new Answer(response.getResult().getOutput().getContent());
+    }
 
     @Override
     public Answer getAnswer(Question question) {
