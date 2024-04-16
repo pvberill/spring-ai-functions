@@ -4,10 +4,12 @@ package guru.springframework.springaifunctions.services;
 import guru.springframework.springaifunctions.functions.WeatherServiceFunction;
 import guru.springframework.springaifunctions.model.Answer;
 import guru.springframework.springaifunctions.model.Question;
+import guru.springframework.springaifunctions.model.WeatherResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.model.function.FunctionCallbackWrapper;
 import org.springframework.ai.openai.OpenAiChatClient;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -34,6 +36,11 @@ public class OpenAIServiceImpl implements OpenAIService {
                 .withFunctionCallbacks(List.of(FunctionCallbackWrapper.builder(new WeatherServiceFunction(apiNinjasKey))
                         .withName("CurrentWeather")
                                 .withDescription("Get the current weather for a location")
+                                .withResponseConverter((response) -> {
+                                    String schema = ModelOptionsUtils.getJsonSchema(WeatherResponse.class, false);
+                                    String json = ModelOptionsUtils.toJsonString(response);
+                                    return schema + "\n" + json;
+                                })
                       .build()))
                 .build();
 
